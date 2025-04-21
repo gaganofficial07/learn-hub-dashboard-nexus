@@ -13,25 +13,27 @@ const mockMentorSessions = [
     id: '1',
     student: 'John Doe',
     topic: 'Career Guidance',
-    date: '2023-04-15',
+    date: '2025-04-20',
     time: '15:00-16:00',
-    status: 'pending',
-    notes: '',
+    status: 'setup_meeting',
+    notes: 'Initial discussion about career path in software development',
+    ready_for_call: true,
   },
   {
     id: '2',
     student: 'Jane Smith',
     topic: 'Code Review',
-    date: '2023-04-17',
+    date: '2025-04-22',
     time: '10:00-11:00',
-    status: 'approved',
-    notes: '',
+    status: 'setup_meeting',
+    notes: 'Review of React projects and best practices',
+    ready_for_call: true,
   },
   {
     id: '3',
     student: 'Mike Johnson',
     topic: 'Project Planning',
-    date: '2023-04-20',
+    date: '2025-04-20',
     time: '14:00-15:00',
     status: 'completed',
     notes: 'Discussed project architecture and timeline.',
@@ -41,10 +43,19 @@ const mockMentorSessions = [
     id: '4',
     student: 'Sarah Williams',
     topic: 'Database Design',
-    date: '2023-04-10',
+    date: '2025-04-10',
     time: '11:00-12:00',
     status: 'declined',
     notes: 'Schedule conflict',
+  },
+  {
+    id: '5',
+    student: 'Alex Thompson',
+    topic: 'Interview Preparation',
+    date: '2025-04-25',
+    time: '13:00-14:00',
+    status: 'pending',
+    notes: '',
   },
 ];
 
@@ -92,16 +103,22 @@ const MentorshipDashboard: React.FC = () => {
       key: 'status',
       render: (status: string) => {
         let color = 'default';
+        let displayStatus = status.toUpperCase();
+        
         if (status === 'approved') color = 'green';
         if (status === 'pending') color = 'gold';
         if (status === 'completed') color = 'blue';
         if (status === 'declined') color = 'red';
+        if (status === 'setup_meeting') {
+          color = 'green';
+          displayStatus = 'READY FOR MEETING';
+        }
         
-        return <Tag color={color}>{status.toUpperCase()}</Tag>;
+        return <Tag color={color}>{displayStatus}</Tag>;
       },
       filters: [
         { text: 'Pending', value: 'pending' },
-        { text: 'Approved', value: 'approved' },
+        { text: 'Ready for Meeting', value: 'setup_meeting' },
         { text: 'Completed', value: 'completed' },
         { text: 'Declined', value: 'declined' },
       ],
@@ -132,7 +149,7 @@ const MentorshipDashboard: React.FC = () => {
           );
         }
         
-        if (record.status === 'approved') {
+        if (record.status === 'setup_meeting' && record.ready_for_call) {
           return (
             <Space>
               <Button 
@@ -182,7 +199,7 @@ const MentorshipDashboard: React.FC = () => {
     const date = value.format('YYYY-MM-DD');
     const matchingSessions = mockMentorSessions.filter(session => session.date === date);
     return matchingSessions.map(session => ({
-      type: session.status === 'approved' ? 'success' : 
+      type: session.status === 'setup_meeting' ? 'success' : 
             session.status === 'pending' ? 'warning' : 
             session.status === 'completed' ? 'processing' : 'error',
       content: `${session.time}: ${session.student}`,
@@ -210,11 +227,13 @@ const MentorshipDashboard: React.FC = () => {
     console.log(value.format('YYYY-MM-DD'), mode);
   };
 
-  if (isInCall) {
+  if (isInCall && selectedSession) {
     return (
       <div className="p-4">
         <VideoCall 
-          sessionId={selectedSession.id} 
+          sessionId={selectedSession.id}
+          studentName={selectedSession.student}
+          topic={selectedSession.topic}
           onEndCall={() => setIsInCall(false)} 
         />
       </div>
@@ -252,7 +271,7 @@ const MentorshipDashboard: React.FC = () => {
           >
             <Option value="all">All Sessions</Option>
             <Option value="pending">Pending Requests</Option>
-            <Option value="approved">Upcoming Sessions</Option>
+            <Option value="setup_meeting">Ready for Meeting</Option>
             <Option value="completed">Past Sessions</Option>
             <Option value="declined">Declined Sessions</Option>
           </Select>
