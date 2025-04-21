@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import { Card, Table, Tag, Button, Calendar, Modal, Form, Input, Select, Space, Badge, Upload } from 'antd';
 import { CheckOutlined, CloseOutlined, FileOutlined, CalendarOutlined } from '@ant-design/icons';
 import type { CalendarMode } from 'antd/lib/calendar/generateCalendar';
+import VideoCall from './VideoCall';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -53,10 +53,16 @@ const MentorshipDashboard: React.FC = () => {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<any>(null);
   const [filter, setFilter] = useState('all');
+  const [isInCall, setIsInCall] = useState(false);
   
   const handleSessionAction = (record: any, action: string) => {
-    setSelectedSession(record);
-    setIsDetailsModalOpen(true);
+    if (action === 'startCall') {
+      setIsInCall(true);
+      setSelectedSession(record);
+    } else {
+      setSelectedSession(record);
+      setIsDetailsModalOpen(true);
+    }
   };
   
   const columns = [
@@ -128,12 +134,20 @@ const MentorshipDashboard: React.FC = () => {
         
         if (record.status === 'approved') {
           return (
-            <Button 
-              icon={<FileOutlined />} 
-              onClick={() => handleSessionAction(record, 'view')}
-            >
-              Session Details
-            </Button>
+            <Space>
+              <Button 
+                type="primary"
+                onClick={() => handleSessionAction(record, 'startCall')}
+              >
+                Start Call
+              </Button>
+              <Button 
+                icon={<FileOutlined />} 
+                onClick={() => handleSessionAction(record, 'view')}
+              >
+                Session Details
+              </Button>
+            </Space>
           );
         }
         
@@ -164,7 +178,6 @@ const MentorshipDashboard: React.FC = () => {
     },
   ];
   
-  // Mock data for the calendar display
   const getListData = (value: any) => {
     const date = value.format('YYYY-MM-DD');
     const matchingSessions = mockMentorSessions.filter(session => session.date === date);
@@ -196,6 +209,17 @@ const MentorshipDashboard: React.FC = () => {
   const onPanelChange = (value: any, mode: CalendarMode) => {
     console.log(value.format('YYYY-MM-DD'), mode);
   };
+
+  if (isInCall) {
+    return (
+      <div className="p-4">
+        <VideoCall 
+          sessionId={selectedSession.id} 
+          onEndCall={() => setIsInCall(false)} 
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -241,7 +265,6 @@ const MentorshipDashboard: React.FC = () => {
         />
       </Card>
       
-      {/* Availability Modal */}
       <Modal
         title="Set Your Availability"
         open={isAvailabilityModalOpen}
@@ -299,7 +322,6 @@ const MentorshipDashboard: React.FC = () => {
         </Form>
       </Modal>
       
-      {/* Session Details Modal */}
       <Modal
         title="Session Details"
         open={isDetailsModalOpen}
