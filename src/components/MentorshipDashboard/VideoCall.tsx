@@ -21,60 +21,121 @@ const VideoCall: React.FC<{
 
   const startUserMedia = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
+      // Request user media permissions explicitly
+      const constraints = {
         video: videoEnabled,
         audio: audioEnabled,
-      });
+      };
+      
+      console.log("Requesting user media with constraints:", constraints);
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log("Media stream obtained:", mediaStream);
+      
       setStream(mediaStream);
+      
+      // Ensure video element exists and set its source
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        videoRef.current.onloadedmetadata = () => {
+          console.log("Video metadata loaded, playing video");
+          videoRef.current?.play().catch(e => {
+            console.error("Error playing video:", e);
+          });
+        };
       }
+      
       toast.success("Camera and microphone connected successfully");
     } catch (error) {
       console.error('Error accessing media devices:', error);
-      toast.error("Failed to access camera or microphone");
+      toast.error(`Failed to access camera or microphone: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
   const handleStartCall = async () => {
+    console.log("Starting call and requesting permissions");
     await startUserMedia();
     setCallStarted(true);
   };
 
   const toggleVideo = async () => {
     if (stream) {
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoEnabled;
-        setVideoEnabled(!videoEnabled);
+      const videoTracks = stream.getVideoTracks();
+      console.log("Video tracks:", videoTracks);
+      
+      if (videoTracks.length > 0) {
+        const newState = !videoEnabled;
+        videoTracks[0].enabled = newState;
+        setVideoEnabled(newState);
+        console.log(`Video ${newState ? 'enabled' : 'disabled'}`);
+      } else if (!videoEnabled) {
+        // If video is disabled and no video tracks exist, try to add a video track
+        try {
+          const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          const videoTrack = videoStream.getVideoTracks()[0];
+          stream.addTrack(videoTrack);
+          setVideoEnabled(true);
+          console.log("Added new video track to stream");
+        } catch (error) {
+          console.error("Error adding video track:", error);
+          toast.error("Failed to enable video");
+        }
       }
     }
   };
 
-  const toggleAudio = () => {
+  const toggleAudio = async () => {
     if (stream) {
-      const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioEnabled;
-        setAudioEnabled(!audioEnabled);
+      const audioTracks = stream.getAudioTracks();
+      console.log("Audio tracks:", audioTracks);
+      
+      if (audioTracks.length > 0) {
+        const newState = !audioEnabled;
+        audioTracks[0].enabled = newState;
+        setAudioEnabled(newState);
+        console.log(`Audio ${newState ? 'enabled' : 'disabled'}`);
+      } else if (!audioEnabled) {
+        // If audio is disabled and no audio tracks exist, try to add an audio track
+        try {
+          const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const audioTrack = audioStream.getAudioTracks()[0];
+          stream.addTrack(audioTrack);
+          setAudioEnabled(true);
+          console.log("Added new audio track to stream");
+        } catch (error) {
+          console.error("Error adding audio track:", error);
+          toast.error("Failed to enable audio");
+        }
       }
     }
   };
 
   const stopStream = () => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      console.log("Stopping all media tracks");
+      stream.getTracks().forEach(track => {
+        console.log(`Stopping track: ${track.kind}`);
+        track.stop();
+      });
       setStream(null);
+      
+      // Clear video element source
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
     }
   };
 
   const handleEndCall = () => {
+    console.log("Ending call and cleaning up");
     stopStream();
     onEndCall();
   };
 
   useEffect(() => {
+    // Cleanup function to stop all media when component unmounts
     return () => {
+      console.log("Component unmounting, stopping media");
       stopStream();
     };
   }, []);
@@ -116,9 +177,14 @@ const VideoCall: React.FC<{
             ref={videoRef}
             autoPlay
             playsInline
-            muted
+            muted={audioEnabled} // Note: Muted by default to avoid audio feedback
             className="w-full h-full object-cover"
           />
+          {!stream && (
+            <div className="absolute text-white">
+              Loading video stream...
+            </div>
+          )}
         </div>
         
         <div className="flex justify-center gap-4 mt-4">
